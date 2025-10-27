@@ -1,10 +1,27 @@
 import discord
 from discord.ext import commands
 from discord.ui import View, Select
+from flask import Flask
+from threading import Thread
 import logging
 from dotenv import load_dotenv
 import os
 
+# ====== SETUP FLASK KEEP ALIVE ======
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "✅ Discord bot is alive!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+# ====== DISCORD BOT SETUP ======
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
 
@@ -14,13 +31,13 @@ intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ===== NAMA ROLE SESUAI SERVER KAMU =====
+# ===== ROLE NAMES SESUAI SERVER =====
 ROLE_MEMBER = "꧁⎝ 𓆩༺𝙈𝙚𝙢𝙗𝙚𝙧༻𓆪 ⎠꧂"
 GENDER_ROLES = ["♂️ Boys", "♀️ Girls"]
 DEVICE_ROLES = ["📱 Mobile", "💻 PC"]
 GAME_ROLES = ["🎭 Roblox", "⚜️ Honor of Kings", "🔫 Blood Strike", "⚔️ Mobile Legends"]
 
-# ===== EVENT DASAR =====
+# ===== EVENT =====
 @bot.event
 async def on_ready():
     print(f"✅ Bot aktif sebagai {bot.user.name}")
@@ -37,7 +54,6 @@ async def on_message(message):
         await message.delete()
         await message.channel.send(f"{message.author.mention}, jangan gunakan kata itu!")
     await bot.process_commands(message)
-
 
 # ===== COMMAND DASAR =====
 @bot.command()
@@ -61,7 +77,6 @@ async def secret_error(ctx, error):
     if isinstance(error, commands.MissingRole):
         await ctx.send("Kamu tidak punya izin untuk melakukan itu!")
 
-
 # ===== SISTEM ROLE BERTAHAP =====
 @bot.command()
 async def startrole(ctx):
@@ -80,7 +95,6 @@ async def startrole(ctx):
         color=0x3498db,
     )
     await ctx.send(embed=embed, view=GenderView(ctx.author))
-
 
 # ===== GENDER =====
 class GenderView(View):
@@ -108,7 +122,6 @@ class GenderSelect(Select):
         role = discord.utils.get(interaction.guild.roles, name=role_name)
         if role:
             await user.add_roles(role)
-
         await interaction.response.edit_message(
             embed=discord.Embed(
                 title="Langkah 2️⃣: Pilih Device",
@@ -117,7 +130,6 @@ class GenderSelect(Select):
             ),
             view=DeviceView(user)
         )
-
 
 # ===== DEVICE =====
 class DeviceView(View):
@@ -147,7 +159,6 @@ class DeviceSelect(Select):
             if role:
                 await user.add_roles(role)
                 added_roles.append(val)
-
         await interaction.response.edit_message(
             embed=discord.Embed(
                 title="Langkah 3️⃣: Pilih Game Favorit",
@@ -156,7 +167,6 @@ class DeviceSelect(Select):
             ),
             view=GameView(user)
         )
-
 
 # ===== GAME =====
 class GameView(View):
@@ -189,17 +199,15 @@ class GameSelect(Select):
                 await user.add_roles(role)
                 added_roles.append(val)
 
-        # Kirim rekap ke channel log
         log_channel = discord.utils.get(interaction.guild.text_channels, name="role-log")
         if log_channel:
             await log_channel.send(
-                f"📝 **{user.name}** memilih:\n"
+                f"📝 **{user.name}** telah memilih:\n"
                 f"• Gender: {', '.join([r for r in GENDER_ROLES if discord.utils.get(interaction.guild.roles, name=r) in user.roles])}\n"
                 f"• Device: {', '.join([r for r in DEVICE_ROLES if discord.utils.get(interaction.guild.roles, name=r) in user.roles])}\n"
                 f"• Game: {', '.join(added_roles)}"
             )
 
-        # Edit embed menjadi hasil akhir
         embed = discord.Embed(
             title="🎉 Selesai!",
             description=f"Role yang kamu dapatkan:\n"
@@ -211,6 +219,6 @@ class GameSelect(Select):
         )
         await interaction.response.edit_message(embed=embed, view=None)
 
-
 # ===== JALANKAN BOT =====
+keep_alive()
 bot.run(token, log_handler=handler, log_level=logging.DEBUG)
